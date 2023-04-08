@@ -27,6 +27,16 @@ class Expenses: ObservableObject {
         }
     }
     
+    // Variable to filter only on personal expenses
+    var personalItems : [ExpenseItem] {
+        get { items.filter { $0.type == "Personal" } }
+    }
+
+    // Variable to filter only on business expenses
+    var businessItems: [ExpenseItem] {
+        get { items.filter { $0.type == "Business" } }
+    }
+    
     // Custom initializer to load the user's saved data
     init() {
         // First, load our UserDefaults data.
@@ -48,10 +58,29 @@ struct ContentView: View {
     // Create an instance of our Expenses class using the StateObject wrapper so that Swift watches for changes
     @StateObject var expenses = Expenses()
     
-    // Method to delete IndexSet of list items, then pass that directly to our expenses array.
-    func removeItems(at offsets: IndexSet) {
-        expenses.items.remove(atOffsets: offsets)
-    }
+    // Funcion to remove personal expenses
+    func removePersonalItems(at offsets: IndexSet) {
+      // Look at each item we are trying to delete
+      for offset in offsets {
+        // Look in the personalItems array and get that specific item we are trying to delete. Find it's corresponding match in the expenses.items array.
+          if let index = expenses.items.firstIndex(where: {$0.id == expenses.personalItems[offset].id}) {
+          // Delete the item from the expenses.items array at the index you found its match
+            expenses.items.remove(at: index)
+          }
+        }
+      }
+    
+    // Function to remove business expenses
+    func removeBusinessItems(at offsets: IndexSet) {
+      // Look at each item we are trying to delete
+      for offset in offsets {
+        // Look in the businessItems array and get that specific item we are trying to delete. Find it's corresponding match in the expenses.items array.
+          if let index = expenses.items.firstIndex(where: {$0.id == expenses.businessItems[offset].id}) {
+          // Delete the item from the expenses.items array at the index you found its match
+            expenses.items.remove(at: index)
+          }
+        }
+      }
     
     // Variable to track whether our add expense view is showing
     @State private var showingAddExpense = false
@@ -59,23 +88,51 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             List {
-                // Use a ForEach to have access to the onDelete() modifier. We use this ForEach to identify each expense, then print it out in a row. Since expenses conform to the identifiable protocol, we don't need to specify the id.
-                ForEach(expenses.items) { item in
-                    // Horizontal stack to have our expense name and type on the left, a spacer to force the items to each side, then the amount on the right
-                    HStack {
-                        // VStack to stack our bolded expense name and type
+                // Split into two sections - one to display personal expenses, and one to display business expenses
+                Section(header: Text("Personal Costs")) {
+                    // Use a ForEach to have access to the onDelete() modifier. We use this ForEach to identify each expense, then print it out in a row. Since expenses conform to the identifiable protocol, we don't need to specify the id.
+                    ForEach(expenses.personalItems) { item in
+                        // Horizontal stack to have our expense name and type on the left, a spacer to force the items to each side, then the amount on the right
+                        HStack {
+                            // VStack to stack our bolded expense name and type
                             VStack(alignment: .leading) {
                                 Text(item.name)
                                     .font(.headline)
                                 Text(item.type)
                             }
-
+                            
                             Spacer()
-                            Text(item.amount, format: .currency(code: "USD"))
+                            // Make sure our amount formatting is for the user's local currency
+                            Text(item.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            // Use the ternary opeerator to change the color of our expnses
+                                .foregroundColor(item.amount < 10.0 ? .green : item.amount > 100 ? .red : .black)
                         }
+                    }
+                    // Add an onDelete modifier to our ForEach, calling removeItems to allow us to swipe to delete expenses.
+                    .onDelete(perform: removePersonalItems)
                 }
-                // Add an onDelete modifier to our ForEach, calling removeItems to allow us to swipe to delete expenses.
-                .onDelete(perform: removeItems)
+                Section(header: Text("Business Costs")) {
+                    // Use a ForEach to have access to the onDelete() modifier. We use this ForEach to identify each expense, then print it out in a row. Since expenses conform to the identifiable protocol, we don't need to specify the id.
+                    ForEach(expenses.businessItems) { item in
+                        // Horizontal stack to have our expense name and type on the left, a spacer to force the items to each side, then the amount on the right
+                        HStack {
+                            // VStack to stack our bolded expense name and type
+                            VStack(alignment: .leading) {
+                                Text(item.name)
+                                    .font(.headline)
+                                Text(item.type)
+                            }
+                            
+                            Spacer()
+                            // Make sure our amount formatting is for the user's local currency
+                            Text(item.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            // Use the ternary opeerator to change the color of our expnses
+                                .foregroundColor(item.amount < 10.0 ? .green : item.amount > 100 ? .red : .black)
+                        }
+                    }
+                    // Add an onDelete modifier to our ForEach, calling removeItems to allow us to swipe to delete expenses.
+                    .onDelete(perform: removeBusinessItems)
+                }
             }
             .toolbar {
                 Button {
